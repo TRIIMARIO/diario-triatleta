@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Diario">
+<title>Diario del triatleta</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #efefed;
+    --text: #1a1a1a;
+    --text2: #6b6b6b;
+    --text3: #aaaaaa;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.18);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --swim: #378ADD;
+    --bike: #EF9F27;
+    --run: #639922;
+    --strava: #FC4C02;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e;
+      --bg2: #2c2c2e;
+      --bg3: #3a3a3c;
+      --text: #f2f2f7;
+      --text2: #aeaeb2;
+      --text3: #636366;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.18);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg2); }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; color: var(--text); }
+
+  .app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; max-width: 430px; margin: 0 auto; background: var(--bg); }
+
+  /* SCREENS */
+  .screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+  .screen.active { display: flex; }
+
+  /* ONBOARDING */
+  .ob-wrap { flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding: calc(var(--safe-top) + 60px) 32px calc(var(--safe-bot) + 40px); }
+  .ob-body { display: flex; flex-direction: column; gap: 36px; }
+  .ob-line { width: 32px; height: 2px; background: var(--text); }
+  .ob-h { font-size: 28px; font-weight: 600; color: var(--text); letter-spacing: -0.5px; line-height: 1.2; }
+  .ob-sub { font-size: 15px; color: var(--text3); line-height: 1.6; margin-top: 12px; }
+  .ob-step { font-size: 12px; color: var(--text3); margin-bottom: 8px; }
+  .ob-actions { display: flex; flex-direction: column; gap: 10px; }
+  .dots { display: flex; gap: 6px; justify-content: center; }
+  .dot { width: 5px; height: 5px; border-radius: 3px; background: var(--border2); transition: all 0.2s; }
+  .dot.on { width: 16px; background: var(--text); }
+
+  /* BUTTONS */
+  .btn { width: 100%; padding: 15px; border-radius: var(--radius-sm); font-size: 16px; font-weight: 500; cursor: pointer; border: none; font-family: inherit; transition: opacity 0.15s; }
+  .btn:active { opacity: 0.75; }
+  .btn-primary { background: var(--text); color: var(--bg); }
+  .btn-ghost { background: transparent; color: var(--text2); font-size: 15px; }
+  .btn-strava { background: var(--strava); color: #fff; display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+  /* CHIPS */
+  .chips { display: flex; flex-wrap: wrap; gap: 9px; }
+  .chip { padding: 9px 18px; border-radius: 22px; font-size: 14px; cursor: pointer; border: 0.5px solid var(--border2); color: var(--text2); background: transparent; transition: all 0.12s; }
+  .chip.sel { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  /* STRAVA CONNECTED */
+  .strava-ok { display: none; flex-direction: column; gap: 14px; }
+  .strava-ok-row { display: flex; align-items: center; gap: 12px; padding: 13px 16px; background: var(--bg2); border-radius: var(--radius-sm); border: 0.5px solid var(--border); }
+  .check-c { width: 22px; height: 22px; border-radius: 50%; background: #3B6D11; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* REFLECTION textarea */
+  .ref-ta { width: 100%; border: none; border-bottom: 0.5px solid var(--border2); padding: 10px 0; font-size: 15px; color: var(--text); background: transparent; resize: none; font-family: Georgia, serif; line-height: 1.7; min-height: 90px; }
+  .ref-ta:focus { outline: none; border-bottom-color: var(--text); }
+  .ref-ta::placeholder { color: var(--text3); font-family: Georgia, serif; }
+
+  /* HOME */
+  .topbar { padding: calc(var(--safe-top) + 16px) 22px 14px; background: var(--bg); border-bottom: 0.5px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0; }
+  .greeting { font-size: 21px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; }
+  .day-lbl { font-size: 13px; color: var(--text3); margin-top: 3px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--bg2); border: 0.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--text2); }
+
+  .scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 18px 0 20px; display: flex; flex-direction: column; gap: 22px; }
+  .sec { padding: 0 18px; display: flex; flex-direction: column; gap: 11px; }
+  .sec-lbl { font-size: 11px; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+
+  /* GOAL CARD */
+  .goal-inner { padding: 16px 18px; }
+  .goal-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .goal-name { font-size: 16px; font-weight: 600; color: var(--text); }
+  .goal-sub-txt { font-size: 12px; color: var(--text3); margin-top: 3px; }
+  .cd-big { font-size: 30px; font-weight: 700; color: var(--text); letter-spacing: -1px; line-height: 1; text-align: right; }
+  .cd-unit { font-size: 11px; color: var(--text3); text-align: right; margin-top: 3px; }
+  .prog-track { height: 3px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 2px; background: var(--text); }
+  .prog-labels { display: flex; justify-content: space-between; margin-top: 7px; }
+  .prog-lbl { font-size: 11px; color: var(--text3); }
+
+  /* SPORT PILLS */
+  .sport-row { display: flex; gap: 8px; }
+  .sport-pill { flex: 1; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px 8px; text-align: center; }
+  .sp-val { font-size: 15px; font-weight: 600; color: var(--text); }
+  .sp-lbl { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .sp-sub { font-size: 10px; color: var(--text3); }
+
+  /* WEEK BARS */
+  .wb-header { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 16px 10px; }
+  .wb-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .wb-total { font-size: 13px; color: var(--text3); }
+  .bars-row { display: flex; align-items: flex-end; gap: 5px; height: 52px; padding: 0 16px 12px; }
+  .bw { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .b { width: 100%; border-radius: 3px 3px 0 0; }
+  .bd { font-size: 10px; color: var(--text3); }
+
+  /* LAST SESSION */
+  .ls-stripe { height: 2px; }
+  .ls-body { padding: 14px 16px; }
+  .ls-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .ls-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .ls-meta { font-size: 12px; color: var(--text3); margin-top: 3px; }
+  .ls-tag { font-size: 11px; padding: 3px 10px; border-radius: 10px; }
+  .ls-stats { display: flex; gap: 20px; }
+  .lst-val { font-size: 16px; font-weight: 600; color: var(--text); }
+  .lst-lbl { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .ls-note { margin-top: 12px; padding-top: 12px; border-top: 0.5px solid var(--border); font-size: 14px; color: var(--text2); font-style: italic; font-family: Georgia, serif; line-height: 1.55; }
+
+  /* REFLECTION CARD */
+  .ref-card { padding: 16px 18px; }
+  .ref-q { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.4; margin-bottom: 14px; }
+  .ref-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  .ref-words { font-size: 11px; color: var(--text3); }
+  .ref-save { background: var(--text); color: var(--bg); border: none; border-radius: var(--radius-sm); padding: 8px 16px; font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 500; }
+  .ref-save:active { opacity: 0.7; }
+
+  /* SAVED FLASH */
+  .saved-flash { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 9px 20px; border-radius: 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+  .saved-flash.show { opacity: 1; }
+
+  /* NAV BAR */
+  .nav-bar { background: var(--bg); border-top: 0.5px solid var(--border); display: flex; padding: 10px 0 calc(var(--safe-bot) + 6px); flex-shrink: 0; }
+  .nb-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; padding: 4px 0; }
+  .nb-item:active { opacity: 0.6; }
+  .nb-icon { width: 22px; height: 22px; color: var(--text3); }
+  .nb-icon.on { color: var(--text); }
+  .nb-lbl { font-size: 10px; color: var(--text3); }
+  .nb-lbl.on { color: var(--text); font-weight: 600; }
+  .nb-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--text); }
+
+  /* ENTRENOS SCREEN */
+  .sport-filter { display: flex; gap: 7px; padding: 14px 18px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; flex-shrink: 0; }
+  .sport-filter::-webkit-scrollbar { display: none; }
+  .sf-pill { padding: 7px 15px; border-radius: 18px; font-size: 13px; cursor: pointer; border: 0.5px solid var(--border2); color: var(--text2); background: transparent; white-space: nowrap; font-family: inherit; }
+  .sf-pill.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .sessions { padding: 0 18px; display: flex; flex-direction: column; gap: 10px; }
+  .sess-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .sess-stripe { height: 2px; }
+  .sess-body { padding: 13px 15px; }
+  .sess-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .sess-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .sess-meta { font-size: 12px; color: var(--text3); margin-top: 3px; }
+  .sess-tag { font-size: 11px; padding: 3px 9px; border-radius: 10px; }
+  .sess-stats { display: flex; gap: 18px; }
+  .sv { font-size: 15px; font-weight: 600; color: var(--text); }
+  .sl { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .feel-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .feel-lbl { font-size: 11px; color: var(--text3); }
+  .feel-dots { display: flex; gap: 4px; margin-left: auto; }
+  .fd { width: 8px; height: 8px; border-radius: 50%; background: var(--bg3); }
+  .fd.on { background: var(--text2); }
+
+  /* OBJETIVO SCREEN */
+  .obj-body { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+  .obj-hero { padding: 24px 20px; text-align: center; border-bottom: 0.5px solid var(--border); }
+  .obj-label { font-size: 11px; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; }
+  .obj-name { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.4px; }
+  .obj-date-txt { font-size: 13px; color: var(--text2); margin-top: 4px; }
+  .cd-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .cd-cell { padding: 16px 8px; text-align: center; border-right: 0.5px solid var(--border); }
+  .cd-cell:last-child { border-right: none; }
+  .cd-n { font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+  .cd-u { font-size: 10px; color: var(--text3); margin-top: 3px; }
+  .dist-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .dc { background: var(--bg2); border-radius: var(--radius-sm); padding: 13px 10px; text-align: center; }
+  .dc-sport { font-size: 10px; color: var(--text3); margin-bottom: 8px; }
+  .dc-bar-bg { height: 40px; background: var(--bg); border-radius: 3px; display: flex; align-items: flex-end; overflow: hidden; margin-bottom: 7px; }
+  .dc-fill { width: 100%; border-radius: 3px 3px 0 0; }
+  .dc-km { font-size: 13px; font-weight: 600; color: var(--text); }
+  .dc-target { font-size: 10px; color: var(--text3); }
+  .date-input-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .date-input-lbl { font-size: 12px; color: var(--text3); margin-bottom: 10px; }
+
+  /* DIARIO SCREEN */
+  .diario-body { padding: 18px; display: flex; flex-direction: column; gap: 13px; }
+  .new-entry { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .ne-header { padding: 12px 16px; border-bottom: 0.5px solid var(--border); font-size: 13px; color: var(--text2); }
+  .ne-ta { width: 100%; border: none; padding: 13px 16px; font-size: 15px; color: var(--text); background: transparent; resize: none; font-family: Georgia, serif; line-height: 1.65; min-height: 90px; }
+  .ne-ta:focus { outline: none; }
+  .ne-ta::placeholder { color: var(--text3); font-family: Georgia, serif; }
+  .ne-footer { padding: 10px 16px; border-top: 0.5px solid var(--border); display: flex; justify-content: flex-end; }
+  .ne-save { background: var(--text); color: var(--bg); border: none; border-radius: var(--radius-sm); padding: 8px 16px; font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 500; }
+  .journal-entry { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .je-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 9px; }
+  .je-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .je-date { font-size: 11px; color: var(--text3); }
+  .je-body { font-size: 14px; color: var(--text2); line-height: 1.6; font-family: Georgia, serif; }
+  .je-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .je-chip { font-size: 11px; padding: 3px 9px; border-radius: 10px; background: var(--bg2); color: var(--text2); border: 0.5px solid var(--border); }
+
+  input[type=date] { width: 100%; padding: 10px 0; font-size: 15px; color: var(--text); background: transparent; border: none; border-bottom: 0.5px solid var(--border2); font-family: inherit; }
+  input[type=date]:focus { outline: none; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- SAVED FLASH -->
+  <div class="saved-flash" id="flash">Guardado</div>
+
+  <!-- ============ ONBOARDING SCREENS ============ -->
+
+  <!-- OB0: Bienvenida -->
+  <div class="screen active" id="ob0">
+    <div class="ob-wrap">
+      <div class="ob-body">
+        <div>
+          <div class="ob-line"></div>
+          <div class="ob-h" style="margin-top:20px">Tu espacio<br>de entreno<br>y reflexión.</div>
+          <div class="ob-sub">Un diario privado para triatletas.<br>Natación, bici y carrera.</div>
+        </div>
+        <div class="ob-actions">
+          <button class="btn btn-primary" onclick="goOb(1)">Empezar</button>
+          <button class="btn btn-ghost" onclick="goOb(1)">Ya tengo cuenta</button>
+        </div>
+      </div>
+      <div class="dots">
+        <div class="dot on"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OB1: Strava -->
+  <div class="screen" id="ob1">
+    <div class="ob-wrap">
+      <div class="ob-body">
+        <div>
+          <div class="ob-step">Paso 1 de 3</div>
+          <div class="ob-h">Conecta tus<br>entrenos</div>
+          <div class="ob-sub">Sincroniza con Strava para importar tus actividades. Puedes saltarte este paso y subir archivos GPX.</div>
+        </div>
+        <div id="strava-zone">
+          <div class="ob-actions">
+            <button class="btn btn-strava" onclick="connectStrava()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+              Conectar con Strava
+            </button>
+            <button class="btn btn-ghost" onclick="goOb(2)">Hacerlo más tarde</button>
+          </div>
+        </div>
+        <div class="strava-ok" id="strava-ok">
+          <div class="strava-ok-row">
+            <div class="check-c">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2.5"><polyline points="2,6 5,9 10,3"/></svg>
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:600;color:var(--text)">Strava conectado</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:2px">Importando tus actividades...</div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="goOb(2)">Continuar</button>
+        </div>
+      </div>
+      <div class="dots">
+        <div class="dot"></div><div class="dot on"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OB2: Deportes -->
+  <div class="screen" id="ob2">
+    <div class="ob-wrap">
+      <div class="ob-body">
+        <div>
+          <div class="ob-step">Paso 2 de 3</div>
+          <div class="ob-h">¿Qué deportes<br>practicas?</div>
+          <div class="ob-sub">Selecciona todos los que quieras registrar.</div>
+        </div>
+        <div class="chips">
+          <div class="chip sel" onclick="this.classList.toggle('sel')">Natación</div>
+          <div class="chip sel" onclick="this.classList.toggle('sel')">Bici</div>
+          <div class="chip sel" onclick="this.classList.toggle('sel')">Carrera</div>
+          <div class="chip" onclick="this.classList.toggle('sel')">Triatlón</div>
+          <div class="chip" onclick="this.classList.toggle('sel')">Duatlón</div>
+          <div class="chip" onclick="this.classList.toggle('sel')">Sólo correr</div>
+        </div>
+        <div class="ob-actions">
+          <button class="btn btn-primary" onclick="goOb(3)">Continuar</button>
+        </div>
+      </div>
+      <div class="dots">
+        <div class="dot"></div><div class="dot"></div><div class="dot on"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OB3: Reflexión -->
+  <div class="screen" id="ob3">
+    <div class="ob-wrap">
+      <div class="ob-body">
+        <div>
+          <div class="ob-step">Paso 3 de 3</div>
+          <div class="ob-h" id="ob-q">¿Por qué entrenas?</div>
+          <div class="ob-sub" id="ob-sub">No hay respuesta correcta. Escribe lo primero que te venga.</div>
+        </div>
+        <div>
+          <textarea class="ref-ta" id="ob-ta" placeholder="Escribe aquí..." rows="4" oninput="obWords()"></textarea>
+          <div style="font-size:12px;color:var(--text3);margin-top:7px" id="ob-words">0 palabras</div>
+        </div>
+        <div class="ob-actions">
+          <button class="btn btn-primary" onclick="goOb(4)">Guardar y entrar</button>
+          <button class="btn btn-ghost" onclick="goOb(4)">Saltar por ahora</button>
+        </div>
+      </div>
+      <div class="dots">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot on"></div><div class="dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OB4: Todo listo -->
+  <div class="screen" id="ob4">
+    <div class="ob-wrap">
+      <div class="ob-body">
+        <div>
+          <div style="width:30px;height:30px;border-radius:50%;border:1.5px solid var(--text);display:flex;align-items:center;justify-content:center;margin-bottom:24px">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text)" stroke-width="2.5"><polyline points="2,7 6,11 12,3"/></svg>
+          </div>
+          <div class="ob-h">Todo listo.</div>
+          <div class="ob-sub" style="font-family:Georgia,serif;font-style:italic;margin-top:20px">"El entrenamiento es lo que haces.<br>El diario es quien te conviertes."</div>
+        </div>
+        <div class="ob-actions">
+          <button class="btn btn-primary" onclick="goHome()">Ir a mi diario</button>
+        </div>
+      </div>
+      <div class="dots">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot on"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MAIN APP ============ -->
+  <div class="screen" id="main-app">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div>
+        <div class="greeting" id="greeting">Buenos días</div>
+        <div class="day-lbl" id="day-lbl">Cargando...</div>
+      </div>
+      <div class="avatar">M</div>
+    </div>
+
+    <!-- SCREENS INSIDE APP -->
+    <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+
+      <!-- HOME -->
+      <div id="pg-home" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;">
+        <div class="scroll">
+          <div class="sec">
+            <div class="sec-lbl">Objetivo</div>
+            <div class="card">
+              <div class="goal-inner">
+                <div class="goal-top">
+                  <div>
+                    <div class="goal-name">Mi primer Ironman</div>
+                    <div class="goal-sub-txt">Frankfurt · 29 jun 2025</div>
+                  </div>
+                  <div>
+                    <div class="cd-big" id="home-days">--</div>
+                    <div class="cd-unit">días</div>
+                  </div>
+                </div>
+                <div class="prog-track"><div class="prog-fill" style="width:34%"></div></div>
+                <div class="prog-labels"><span class="prog-lbl">Preparación</span><span class="prog-lbl">34%</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-lbl">Esta semana</div>
+            <div class="sport-row">
+              <div class="sport-pill">
+                <div style="width:18px;height:18px;margin:0 auto 6px">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--swim)" stroke-width="1.8"><path d="M3 12c3-4 6-4 9 0s6 4 9 0"/><circle cx="12" cy="6" r="2"/></svg>
+                </div>
+                <div class="sp-val">5,2 km</div>
+                <div class="sp-lbl">Natación</div>
+                <div class="sp-sub">2 sesiones</div>
+              </div>
+              <div class="sport-pill">
+                <div style="width:18px;height:18px;margin:0 auto 6px">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--bike)" stroke-width="1.8"><circle cx="5" cy="17" r="3"/><circle cx="19" cy="17" r="3"/><path d="M5 17h14M12 5l2 7H8l2-7h2z"/></svg>
+                </div>
+                <div class="sp-val">85 km</div>
+                <div class="sp-lbl">Bici</div>
+                <div class="sp-sub">1 sesión</div>
+              </div>
+              <div class="sport-pill">
+                <div style="width:18px;height:18px;margin:0 auto 6px">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--run)" stroke-width="1.8"><circle cx="12" cy="4" r="2"/><path d="M9 18l1-6 2 3 2-3 1 6M6 12l3-4h6l3 4"/></svg>
+                </div>
+                <div class="sp-val">24 km</div>
+                <div class="sp-lbl">Carrera</div>
+                <div class="sp-sub">3 sesiones</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="wb-header">
+                <span class="wb-title">Actividad diaria</span>
+                <span class="wb-total">6 h 28 min</span>
+              </div>
+              <div class="bars-row">
+                <div class="bw"><div class="b" style="height:28px;background:var(--run)"></div><span class="bd">L</span></div>
+                <div class="bw"><div class="b" style="height:22px;background:var(--swim)"></div><span class="bd">M</span></div>
+                <div class="bw"><div class="b" style="height:48px;background:var(--bike)"></div><span class="bd">X</span></div>
+                <div class="bw"><div class="b" style="height:18px;background:var(--run)"></div><span class="bd">J</span></div>
+                <div class="bw"><div class="b" style="height:16px;background:var(--swim)"></div><span class="bd">V</span></div>
+                <div class="bw"><div class="b" style="height:34px;background:var(--run)"></div><span class="bd">S</span></div>
+                <div class="bw"><div class="b" style="height:5px;background:var(--bg3)"></div><span class="bd">D</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-lbl">Último entreno</div>
+            <div class="card">
+              <div class="ls-stripe" style="background:var(--run)"></div>
+              <div class="ls-body">
+                <div class="ls-top">
+                  <div>
+                    <div class="ls-name">Rodaje suave</div>
+                    <div class="ls-meta">Hoy · 07:15</div>
+                  </div>
+                  <div class="ls-tag" style="background:#EAF3DE;color:#27500A">Carrera</div>
+                </div>
+                <div class="ls-stats">
+                  <div><div class="lst-val">12,4 km</div><div class="lst-lbl">distancia</div></div>
+                  <div><div class="lst-val">1:08</div><div class="lst-lbl">tiempo</div></div>
+                  <div><div class="lst-val">5:30</div><div class="lst-lbl">min/km</div></div>
+                </div>
+                <div class="ls-note">"Piernas ligeras. El cuerpo me pedía más. Esos días me recuerdan por qué madrugo."</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec" style="padding-bottom:8px">
+            <div class="sec-lbl">Reflexión de hoy</div>
+            <div class="card ref-card">
+              <div class="ref-q" id="home-q">¿Qué parte del entreno de esta semana te ha costado más aceptar?</div>
+              <textarea class="ref-ta" id="home-ref" placeholder="Escribe lo que surja..." rows="3" oninput="homeWords()"></textarea>
+              <div class="ref-footer">
+                <span class="ref-words" id="home-words">0 palabras</span>
+                <button class="ref-save" onclick="saveRef('home-ref')">Guardar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENTRENOS -->
+      <div id="pg-entrenos" style="display:none;flex:1;overflow:hidden;flex-direction:column;">
+        <div class="sport-filter">
+          <button class="sf-pill active" onclick="filterSport('all',this)">Todos</button>
+          <button class="sf-pill" onclick="filterSport('swim',this)">Natación</button>
+          <button class="sf-pill" onclick="filterSport('bike',this)">Bici</button>
+          <button class="sf-pill" onclick="filterSport('run',this)">Carrera</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0 16px">
+          <div class="sessions" id="sessions-list">
+            <div class="sess-card" data-sport="swim">
+              <div class="sess-stripe" style="background:var(--swim)"></div>
+              <div class="sess-body">
+                <div class="sess-top">
+                  <div><div class="sess-name">Series de piscina</div><div class="sess-meta">Hoy · 06:30 · Strava</div></div>
+                  <div class="sess-tag" style="background:#E6F1FB;color:#0C447C">Natación</div>
+                </div>
+                <div class="sess-stats">
+                  <div><div class="sv">3.200 m</div><div class="sl">distancia</div></div>
+                  <div><div class="sv">1:22</div><div class="sl">tiempo</div></div>
+                  <div><div class="sv">2:08</div><div class="sl">min/100m</div></div>
+                </div>
+                <div class="feel-row"><span class="feel-lbl">Sensación</span><div class="feel-dots"><div class="fd on"></div><div class="fd on"></div><div class="fd on"></div><div class="fd on"></div><div class="fd"></div></div></div>
+              </div>
+            </div>
+            <div class="sess-card" data-sport="bike">
+              <div class="sess-stripe" style="background:var(--bike)"></div>
+              <div class="sess-body">
+                <div class="sess-top">
+                  <div><div class="sess-name">Fondo en bici</div><div class="sess-meta">Ayer · 09:00 · GPX</div></div>
+                  <div class="sess-tag" style="background:#FAEEDA;color:#633806">Bici</div>
+                </div>
+                <div class="sess-stats">
+                  <div><div class="sv">85 km</div><div class="sl">distancia</div></div>
+                  <div><div class="sv">2:58</div><div class="sl">tiempo</div></div>
+                  <div><div class="sv">28,6</div><div class="sl">km/h</div></div>
+                </div>
+                <div class="feel-row"><span class="feel-lbl">Sensación</span><div class="feel-dots"><div class="fd on"></div><div class="fd on"></div><div class="fd on"></div><div class="fd"></div><div class="fd"></div></div></div>
+              </div>
+            </div>
+            <div class="sess-card" data-sport="run">
+              <div class="sess-stripe" style="background:var(--run)"></div>
+              <div class="sess-body">
+                <div class="sess-top">
+                  <div><div class="sess-name">Rodaje suave</div><div class="sess-meta">Lun · 07:15 · Strava</div></div>
+                  <div class="sess-tag" style="background:#EAF3DE;color:#27500A">Carrera</div>
+                </div>
+                <div class="sess-stats">
+                  <div><div class="sv">12,4 km</div><div class="sl">distancia</div></div>
+                  <div><div class="sv">1:08</div><div class="sl">tiempo</div></div>
+                  <div><div class="sv">5:30</div><div class="sl">min/km</div></div>
+                </div>
+                <div class="feel-row"><span class="feel-lbl">Sensación</span><div class="feel-dots"><div class="fd on"></div><div class="fd on"></div><div class="fd on"></div><div class="fd on"></div><div class="fd on"></div></div></div>
+              </div>
+            </div>
+            <div class="sess-card" data-sport="swim">
+              <div class="sess-stripe" style="background:var(--swim)"></div>
+              <div class="sess-body">
+                <div class="sess-top">
+                  <div><div class="sess-name">Técnica de estilos</div><div class="sess-meta">Dom · 08:00</div></div>
+                  <div class="sess-tag" style="background:#E6F1FB;color:#0C447C">Natación</div>
+                </div>
+                <div class="sess-stats">
+                  <div><div class="sv">2.000 m</div><div class="sl">distancia</div></div>
+                  <div><div class="sv">52 min</div><div class="sl">tiempo</div></div>
+                  <div><div class="sv">2:36</div><div class="sl">min/100m</div></div>
+                </div>
+                <div class="feel-row"><span class="feel-lbl">Sensación</span><div class="feel-dots"><div class="fd on"></div><div class="fd on"></div><div class="fd"></div><div class="fd"></div><div class="fd"></div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DIARIO -->
+      <div id="pg-diario" style="display:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+        <div class="diario-body">
+          <div class="new-entry">
+            <div class="ne-header" id="ne-date">Hoy</div>
+            <textarea class="ne-ta" id="ne-ta" placeholder="Escribe cómo te has sentido, qué piensas, qué quieres mejorar..." rows="4" oninput="neWords()"></textarea>
+            <div class="ne-footer" style="justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:var(--text3)" id="ne-words">0 palabras</span>
+              <button class="ne-save" onclick="saveRef('ne-ta')">Guardar</button>
+            </div>
+          </div>
+          <div class="journal-entry">
+            <div class="je-top"><div class="je-title">Fondo en bici · 85 km</div><div class="je-date">7 abr</div></div>
+            <div class="je-body">Salida larga con viento en contra el último tercio. Me costó mantener el ritmo pero lo logré. Mentalmente fue duro. Necesito trabajar más la concentración en los momentos difíciles.</div>
+            <div class="je-chips"><div class="je-chip">Cansado</div><div class="je-chip">Perseverante</div><div class="je-chip">Viento</div></div>
+          </div>
+          <div class="journal-entry">
+            <div class="je-top"><div class="je-title">Rodaje suave · 12,4 km</div><div class="je-date">6 abr</div></div>
+            <div class="je-body">Uno de esos días perfectos. Las piernas no pesaban nada. Pienso mucho en la carrera a pie del Ironman, donde más me juego el tiempo. Hay que seguir siendo constante.</div>
+            <div class="je-chips"><div class="je-chip">Ligero</div><div class="je-chip">Motivado</div><div class="je-chip">Fluido</div></div>
+          </div>
+          <div class="journal-entry">
+            <div class="je-top"><div class="je-title">Reflexión semanal</div><div class="je-date">5 abr</div></div>
+            <div class="je-body">Semana completa. Tres disciplinas, cuatro sesiones. Empiezo a sentir que el cuerpo se adapta. El sueño sigue siendo mi mayor deuda pendiente.</div>
+            <div class="je-chips"><div class="je-chip">Reflexión</div><div class="je-chip">Sueño</div><div class="je-chip">Constancia</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OBJETIVO -->
+      <div id="pg-objetivo" style="display:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+        <div class="obj-body">
+          <div class="card">
+            <div class="obj-hero">
+              <div class="obj-label">Objetivo principal</div>
+              <div class="obj-name">Mi primer Ironman</div>
+              <div class="obj-date-txt" id="obj-date-txt">Frankfurt · 29 de junio de 2025</div>
+            </div>
+            <div class="cd-grid">
+              <div class="cd-cell"><div class="cd-n" id="cd-d">--</div><div class="cd-u">días</div></div>
+              <div class="cd-cell"><div class="cd-n" id="cd-h">--</div><div class="cd-u">horas</div></div>
+              <div class="cd-cell"><div class="cd-n" id="cd-m">--</div><div class="cd-u">min</div></div>
+              <div class="cd-cell"><div class="cd-n" id="cd-s">--</div><div class="cd-u">seg</div></div>
+            </div>
+            <div style="padding:14px 18px;border-top:0.5px solid var(--border)">
+              <div class="prog-track"><div class="prog-fill" style="width:34%"></div></div>
+              <div class="prog-labels"><span class="prog-lbl">Preparación</span><span class="prog-lbl">34%</span></div>
+            </div>
+          </div>
+          <div class="dist-cards">
+            <div class="dc">
+              <div class="dc-sport">Natación</div>
+              <div class="dc-bar-bg"><div class="dc-fill" style="height:55%;background:var(--swim)"></div></div>
+              <div class="dc-km">24 km</div>
+              <div class="dc-target">meta 80 km</div>
+            </div>
+            <div class="dc">
+              <div class="dc-sport">Bici</div>
+              <div class="dc-bar-bg"><div class="dc-fill" style="height:40%;background:var(--bike)"></div></div>
+              <div class="dc-km">720 km</div>
+              <div class="dc-target">meta 2.000 km</div>
+            </div>
+            <div class="dc">
+              <div class="dc-sport">Carrera</div>
+              <div class="dc-bar-bg"><div class="dc-fill" style="height:30%;background:var(--run)"></div></div>
+              <div class="dc-km">185 km</div>
+              <div class="dc-target">meta 600 km</div>
+            </div>
+          </div>
+          <div class="date-input-card">
+            <div class="date-input-lbl">Fecha del objetivo</div>
+            <input type="date" id="obj-date-input" value="2025-06-29" oninput="updateGoalDate()">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- NAV BAR -->
+    <div class="nav-bar" id="nav-bar">
+      <div class="nb-item" onclick="switchPage('home',this)">
+        <svg class="nb-icon on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span class="nb-lbl on">Inicio</span>
+        <div class="nb-dot"></div>
+      </div>
+      <div class="nb-item" onclick="switchPage('entrenos',this)">
+        <svg class="nb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        <span class="nb-lbl">Entrenos</span>
+      </div>
+      <div class="nb-item" onclick="switchPage('diario',this)">
+        <svg class="nb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <span class="nb-lbl">Diario</span>
+      </div>
+      <div class="nb-item" onclick="switchPage('objetivo',this)">
+        <svg class="nb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="1"/></svg>
+        <span class="nb-lbl">Objetivo</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const obQuestions = [
+  { q: '¿Por qué entrenas?', s: 'No hay respuesta correcta. Escribe lo primero que te venga.' },
+  { q: '¿Qué te da el deporte que no encuentras en otro sitio?', s: 'Tómate un momento. No hay prisa.' },
+  { q: '¿Cuál es tu mayor miedo antes de una prueba?', s: 'Ser honesto aquí es el primer entreno.' },
+  { q: '¿Qué versión de ti quieres encontrar en la meta?', s: 'Piénsalo despacio.' },
+];
+const homeQuestions = [
+  '¿Qué parte del entreno de esta semana te ha costado más aceptar?',
+  '¿Hubo un momento hoy en que quisiste parar? ¿Qué hiciste?',
+  '¿En qué se parece cómo entrenas a cómo vives?',
+  '¿Qué te dice tu cuerpo que todavía no has escuchado?',
+  '¿Estás entrenando para la prueba o para ti?',
+];
+
+let goalDate = new Date('2025-06-29T07:00:00');
+
+function goOb(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('ob' + n).classList.add('active');
+  if (n === 3) {
+    const q = obQuestions[Math.floor(Math.random() * obQuestions.length)];
+    document.getElementById('ob-q').textContent = q.q;
+    document.getElementById('ob-sub').textContent = q.s;
+  }
+}
+
+function connectStrava() {
+  const btn = document.querySelector('.btn-strava');
+  btn.textContent = 'Conectando...';
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  setTimeout(() => {
+    document.getElementById('strava-zone').style.display = 'none';
+    document.getElementById('strava-ok').style.display = 'flex';
+  }, 1500);
+}
+
+function goHome() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('main-app').classList.add('active');
+  initHome();
+  startCountdown();
+}
+
+function initHome() {
+  const now = new Date();
+  const h = now.getHours();
+  const greeting = h < 12 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
+  document.getElementById('greeting').textContent = greeting;
+  const days = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  document.getElementById('day-lbl').textContent = days[now.getDay()] + ', ' + now.getDate() + ' de ' + months[now.getMonth()];
+  document.getElementById('ne-date').textContent = 'Hoy, ' + now.getDate() + ' de ' + months[now.getMonth()];
+  const q = homeQuestions[Math.floor(Math.random() * homeQuestions.length)];
+  document.getElementById('home-q').textContent = q;
+  updateHomeDays();
+}
+
+function updateHomeDays() {
+  const diff = goalDate - new Date();
+  document.getElementById('home-days').textContent = diff > 0 ? Math.floor(diff / 86400000) : 0;
+}
+
+function startCountdown() {
+  function tick() {
+    const diff = goalDate - new Date();
+    if (diff <= 0) {
+      ['cd-d','cd-h','cd-m','cd-s'].forEach(id => document.getElementById(id).textContent = '0');
+      return;
+    }
+    document.getElementById('cd-d').textContent = Math.floor(diff / 86400000);
+    document.getElementById('cd-h').textContent = Math.floor((diff % 86400000) / 3600000);
+    document.getElementById('cd-m').textContent = Math.floor((diff % 3600000) / 60000);
+    document.getElementById('cd-s').textContent = Math.floor((diff % 60000) / 1000);
+    updateHomeDays();
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+function updateGoalDate() {
+  const val = document.getElementById('obj-date-input').value;
+  if (!val) return;
+  goalDate = new Date(val + 'T07:00:00');
+  const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const d = goalDate;
+  document.getElementById('obj-date-txt').textContent = 'Frankfurt · ' + d.getDate() + ' de ' + months[d.getMonth()] + ' de ' + d.getFullYear();
+}
+
+function switchPage(name, el) {
+  ['home','entrenos','diario','objetivo'].forEach(p => {
+    document.getElementById('pg-' + p).style.display = 'none';
+  });
+  document.getElementById('pg-' + name).style.display = 'flex';
+  document.getElementById('pg-' + name).style.flexDirection = 'column';
+  document.querySelectorAll('.nb-item').forEach(item => {
+    item.querySelector('.nb-icon').classList.remove('on');
+    item.querySelector('.nb-lbl').classList.remove('on');
+    const dot = item.querySelector('.nb-dot');
+    if (dot) dot.remove();
+  });
+  el.querySelector('.nb-icon').classList.add('on');
+  el.querySelector('.nb-lbl').classList.add('on');
+  const dot = document.createElement('div');
+  dot.className = 'nb-dot';
+  el.appendChild(dot);
+}
+
+function filterSport(sport, el) {
+  document.querySelectorAll('.sf-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.sess-card').forEach(c => {
+    c.style.display = (sport === 'all' || c.dataset.sport === sport) ? 'block' : 'none';
+  });
+}
+
+function saveRef(id) {
+  const t = document.getElementById(id).value.trim();
+  if (!t) return;
+  const flash = document.getElementById('flash');
+  flash.classList.add('show');
+  setTimeout(() => flash.classList.remove('show'), 2000);
+}
+
+function homeWords() {
+  const t = document.getElementById('home-ref').value.trim();
+  const w = t ? t.split(/\s+/).filter(x=>x).length : 0;
+  document.getElementById('home-words').textContent = w + (w === 1 ? ' palabra' : ' palabras');
+}
+function obWords() {
+  const t = document.getElementById('ob-ta').value.trim();
+  const w = t ? t.split(/\s+/).filter(x=>x).length : 0;
+  document.getElementById('ob-words').textContent = w + (w === 1 ? ' palabra' : ' palabras');
+}
+function neWords() {
+  const t = document.getElementById('ne-ta').value.trim();
+  const w = t ? t.split(/\s+/).filter(x=>x).length : 0;
+  document.getElementById('ne-words').textContent = w + (w === 1 ? ' palabra' : ' palabras');
+}
+
+document.getElementById('pg-entrenos').style.display = 'none';
+document.getElementById('pg-diario').style.display = 'none';
+document.getElementById('pg-objetivo').style.display = 'none';
+</script>
+</body>
+</html>
